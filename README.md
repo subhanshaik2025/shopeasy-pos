@@ -1,21 +1,17 @@
-# FAR-POS
+# FAR-POS - Multi-Industry Point of Sale System
 
-Multi-Industry Point of Sale System
-
-## Features
+## 🎯 Features
 - ✅ Password-based Authentication
-- ✅ Multi-Industry Support (Kirana, Restaurant, Clothing, Tiffin, Pharmacy, Salon)
+- ✅ Multi-Industry Support
 - ✅ Billing & Inventory Management
 - ✅ Reports & Analytics
-- ✅ Khata (Credit) System
+- ✅ Khata System
 
-## Live URL
+## 🚀 Live
 https://far-pos.vercel.app/
 
-## Tech Stack
-- React 18 + Vite
-- localStorage for data storage
-- Supabase integration
-- Vercel deployment
+## 💻 Tech
+React 18 + Vite + Supabase
 
-Built with ❤️ by Subhan
+---
+Built by Subhan Shaik
