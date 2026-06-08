@@ -53,8 +53,6 @@ export default function POSApp() {
       getSalesFromSheet(user.shop_name).then(s=>setBills(s));
       const st=localStorage.getItem('pos-settings-'+user.id);
       if(st) setShopSettings(JSON.parse(st));
-      const st=localStorage.getItem('pos-settings-'+user.id);
-    if(st) setShopSettings(JSON.parse(st));
     const k=localStorage.getItem('pos-khata-'+user.id);
       if(k) setKhata(JSON.parse(k));
       const e=localStorage.getItem('pos-expenses-'+user.id);
