@@ -45,11 +45,16 @@ export async function fetchRegisteredUsers() {
 
 export async function saveRegisteredUser(userData) {
   try {
-    const res = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'registerUser', ...userData }),
+    const params = new URLSearchParams({
+      action: 'registerUser',
+      id: userData.id,
+      phone: userData.phone,
+      password: userData.password,
+      owner_name: userData.owner_name,
+      shop_name: userData.shop_name,
+      industry_type: userData.industry_type,
     });
+    const res = await fetch(APPS_SCRIPT_URL + '?' + params.toString());
     const data = await res.json();
     return data;
   } catch (err) {
