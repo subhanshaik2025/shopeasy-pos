@@ -1,4 +1,4 @@
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbygYlpYQz5CR3s0mn0gZrb8jrgkPc7Y8GeL2tmSG7PLgLh1i5BNrB39ezZm-iRNiZEYUQ/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxi0p_VAIWPC0nZ-ybCK4aKL1wLevrRciBOBC7TtXOxHXr6KAoOXivNlCZXNQRKQMvEYQ/exec';
 
 export async function fetchAllowedUsers() {
   try {
