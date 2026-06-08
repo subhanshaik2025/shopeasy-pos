@@ -2,11 +2,19 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbygYlpYQz5CR3s0
 
 export async function fetchAllowedUsers() {
   try {
-    const res = await fetch(`${APPS_SCRIPT_URL}?action=getAllowedUsers`);
+    const res = await fetch(APPS_SCRIPT_URL + '?action=getAllowedUsers');
     const data = await res.json();
     if (data.success) {
-      localStorage.setItem('far-pos-allowed-users', JSON.stringify(data.users));
-      return data.users;
+      const users = data.users.map(u => ({
+        phone: String(u['Phone Number'] || u['phone'] || '').trim(),
+        ownerName: u['Owner Name'] || u['ownerName'] || '',
+        shopName: u['Shop Name'] || u['shopName'] || '',
+        industryType: u['Industry Type'] || u['industryType'] || '',
+        plan: u['Plan'] || u['plan'] || 'starter',
+        status: u['Status'] || u['status'] || 'active',
+      }));
+      localStorage.setItem('far-pos-allowed-users', JSON.stringify(users));
+      return users;
     }
   } catch (err) {
     console.error('fetchAllowedUsers error:', err);
@@ -23,7 +31,7 @@ export async function verifyPhoneNumberFromSheet(phoneNumber) {
 
 export async function fetchRegisteredUsers() {
   try {
-    const res = await fetch(`${APPS_SCRIPT_URL}?action=getRegisteredUsers`);
+    const res = await fetch(APPS_SCRIPT_URL + '?action=getRegisteredUsers');
     const data = await res.json();
     if (data.success) {
       localStorage.setItem('pos-users', JSON.stringify(data.users));
