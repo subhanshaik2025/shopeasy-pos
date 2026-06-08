@@ -3,26 +3,19 @@ import AuthPage from './AuthPage';
 import { getCurrentUser, isUserLoggedIn, logoutUser } from './auth';
 import { INDUSTRIES, TRANSLATIONS } from './config';
 import { generateId, calculateTotal, sum } from './utils';
+import { initializeAppData } from './loadGoogleSheet';
 
 export default function POSApp() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [industry, setIndustry] = useState(null);
-  const [lang, setLang] = useState('en');
   const [products, setProducts] = useState([]);
-  const [customers, setCustomers] = useState([]);
   const [bills, setBills] = useState([]);
   const [cart, setCart] = useState([]);
   const [tab, setTab] = useState('billing');
-  const [search, setSearch] = useState('');
-  const [billCounter, setBillCounter] = useState(1001);
-  
-  const [showAddProduct, setShowAddProduct] = useState(false);
-  const [newProduct, setNewProduct] = useState({ name: '', price: '', stock: '', category: '' });
-
-  const t = TRANSLATIONS[lang];
 
   useEffect(() => {
+    initializeAppData();
     if (isUserLoggedIn()) {
       const user = getCurrentUser();
       setCurrentUser(user);
@@ -45,7 +38,6 @@ export default function POSApp() {
     logoutUser();
     setIsLoggedIn(false);
     setCurrentUser(null);
-    setIndustry(null);
     setCart([]);
   };
 
@@ -55,58 +47,26 @@ export default function POSApp() {
 
   const subtotal = cart.reduce((s, c) => s + (c.price * c.qty), 0);
   const { grandTotal, gst } = calculateTotal(subtotal, 5);
-  const todayBills = bills.filter(b => b.date === new Date().toLocaleDateString());
-  const todaySales = sum(todayBills, 'total');
-
-  const addProductToInventory = () => {
-    if (!newProduct.name || !newProduct.price) {
-      alert('Please fill in product name and price');
-      return;
-    }
-
-    const product = {
-      id: generateId('prod'),
-      name: newProduct.name,
-      price: parseFloat(newProduct.price),
-      stock: parseFloat(newProduct.stock) || 0,
-      category: newProduct.category || 'General',
-      gst: 5,
-      unit: 'pcs',
-    };
-
-    setProducts([...products, product]);
-    setNewProduct({ name: '', price: '', stock: '', category: '' });
-    setShowAddProduct(false);
-    alert('✅ Product added successfully!');
-  };
 
   const completeBill = (mode) => {
     if (cart.length === 0) {
       alert('Cart is empty!');
       return;
     }
-
     const bill = {
       id: generateId('bill'),
-      num: billCounter,
       items: cart,
-      subtotal: subtotal,
-      gst: Math.round(gst),
       total: Math.round(grandTotal),
       mode: mode,
       date: new Date().toLocaleDateString(),
-      time: new Date().toLocaleTimeString(),
     };
-
     setBills([...bills, bill]);
-    setBillCounter(billCounter + 1);
     setCart([]);
-    alert(`✅ Bill #${bill.num} completed!\nTotal: ₹${bill.total}`);
+    alert(`✅ Bill completed! Total: ₹${bill.total}`);
   };
 
   return (
     <div style={{ fontFamily: "'Noto Sans', sans-serif", background: '#F3F3EE', minHeight: '100vh', color: '#1a1a1a' }}>
-      {/* HEADER */}
       <div style={{ background: '#0D9488', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ fontSize: 24 }}>{industry?.icon}</div>
@@ -115,195 +75,63 @@ export default function POSApp() {
             <p style={{ fontSize: 10, color: 'rgba(255,255,255,.65)' }}>FAR-POS v2</p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,.7)' }}>{currentUser?.owner_name}</span>
-          <button onClick={() => setLang(lang === 'en' ? 'te' : 'en')} style={{ padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, background: 'rgba(255,255,255,.2)', color: '#fff', border: 'none', cursor: 'pointer' }}>
-            {lang === 'en' ? 'తెలుగు' : 'EN'}
-          </button>
-          <button onClick={handleLogout} style={{ padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, background: 'rgba(220,38,38,.3)', color: '#fff', border: '1px solid rgba(220,38,38,.5)', cursor: 'pointer' }}>
-            🚪 Logout
-          </button>
-        </div>
+        <button onClick={handleLogout} style={{ padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, background: 'rgba(220,38,38,.3)', color: '#fff', border: '1px solid rgba(220,38,38,.5)', cursor: 'pointer' }}>🚪 Logout</button>
       </div>
 
-      {/* TABS */}
       <div style={{ display: 'flex', gap: 2, padding: '6px 12px 0', background: '#E8E8E3', overflowX: 'auto' }}>
         {industry?.features?.map((feature) => (
-          <button key={feature} onClick={() => setTab(feature)} style={{ padding: '9px 16px', borderRadius: '8px 8px 0 0', fontSize: 13, fontWeight: tab === feature ? 700 : 500, background: tab === feature ? '#fff' : 'transparent', color: tab === feature ? '#0D9488' : '#999', border: 'none', cursor: 'pointer', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
+          <button key={feature} onClick={() => setTab(feature)} style={{ padding: '9px 16px', borderRadius: '8px 8px 0 0', fontSize: 13, fontWeight: tab === feature ? 700 : 500, background: tab === feature ? '#fff' : 'transparent', color: tab === feature ? '#0D9488' : '#999', border: 'none', cursor: 'pointer', textTransform: 'capitalize' }}>
             {feature}
           </button>
         ))}
       </div>
 
-      {/* CONTENT */}
       <div style={{ background: '#fff', minHeight: 'calc(100vh - 120px)', padding: 16 }}>
-        {/* BILLING TAB */}
         {tab === 'billing' && (
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            {/* PRODUCTS */}
-            <div style={{ flex: '1 1 55%', minWidth: 250 }}>
-              <input type="text" placeholder={t.search} value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #e0e0e0', marginBottom: 12, fontSize: 14 }} />
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8, maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
-                {products.filter(p => p.name.toLowerCase().includes(search.toLowerCase())).map((p) => (
-                  <div key={p.id} onClick={() => { const ex = cart.find(c => c.id === p.id); setCart(ex ? cart.map(c => c.id === p.id ? { ...c, qty: c.qty + 1 } : c) : [...cart, { ...p, qty: 1 }]); }} style={{ background: '#f9f9f9', borderRadius: 12, padding: 12, cursor: 'pointer', border: '1.5px solid #eee', transition: 'all 0.15s' }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0D9488'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(13,148,136,.1)'; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#eee'; e.currentTarget.style.boxShadow = 'none'; }}>
-                    <p style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>{p.name}</p>
+          <div style={{ display: 'flex', gap: 16 }}>
+            <div style={{ flex: 1 }}>
+              <h3>Products</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
+                {products.map((p) => (
+                  <div key={p.id} onClick={() => { const ex = cart.find(c => c.id === p.id); setCart(ex ? cart.map(c => c.id === p.id ? { ...c, qty: c.qty + 1 } : c) : [...cart, { ...p, qty: 1 }]); }} style={{ background: '#f9f9f9', borderRadius: 12, padding: 12, cursor: 'pointer', border: '1px solid #eee' }}>
+                    <p style={{ fontWeight: 600, fontSize: 12 }}>{p.name}</p>
                     <p style={{ fontSize: 14, fontWeight: 700, color: '#0D9488' }}>₹{p.price}</p>
-                    {p.stock !== undefined && <p style={{ fontSize: 10, color: p.stock < 10 ? '#DC2626' : '#999' }}>{p.stock} left</p>}
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* CART */}
-            <div style={{ flex: '1 1 40%', minWidth: 250, display: 'flex', flexDirection: 'column' }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>🧾 {t.cart}</h3>
-              <div style={{ flex: 1, overflowY: 'auto', maxHeight: 'calc(100vh - 320px)', marginBottom: 12 }}>
+            <div style={{ flex: 1 }}>
+              <h3>Cart</h3>
+              <div style={{ marginBottom: 12 }}>
                 {cart.map((item) => (
                   <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
                     <div>
                       <p style={{ fontSize: 12, fontWeight: 600 }}>{item.name}</p>
                       <p style={{ fontSize: 10, color: '#999' }}>₹{item.price} × {item.qty}</p>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <button onClick={() => setCart(cart.map(c => c.id === item.id ? { ...c, qty: c.qty - 1 } : c).filter(c => c.qty > 0))} style={{ width: 28, height: 28, borderRadius: '50%', background: '#FEF2F2', color: '#DC2626', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 16 }}>−</button>
-                      <span style={{ fontSize: 12, fontWeight: 600, minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
-                      <button onClick={() => setCart(cart.map(c => c.id === item.id ? { ...c, qty: c.qty + 1 } : c))} style={{ width: 28, height: 28, borderRadius: '50%', background: '#E6F7F5', color: '#0D9488', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 16 }}>+</button>
-                      <span style={{ fontSize: 13, fontWeight: 700, minWidth: 55, textAlign: 'right' }}>₹{(item.price * item.qty).toLocaleString()}</span>
-                    </div>
+                    <span style={{ fontWeight: 700 }}>₹{(item.price * item.qty).toLocaleString()}</span>
                   </div>
                 ))}
               </div>
-
               <div style={{ paddingTop: 12, borderTop: '2px solid #eee' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#999', marginBottom: 3 }}>
-                  <span>{t.subtotal}</span>
-                  <span>₹{subtotal.toLocaleString()}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#999', marginBottom: 8 }}>
-                  <span>{t.gst}</span>
-                  <span>₹{Math.round(gst).toLocaleString()}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 700, margin: '8px 0 12px' }}>
-                  <span>{t.grandTotal}</span>
-                  <span style={{ color: '#0D9488' }}>₹{Math.round(grandTotal).toLocaleString()}</span>
-                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}><span>Subtotal</span><span>₹{subtotal.toLocaleString()}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}><span>GST</span><span>₹{Math.round(gst).toLocaleString()}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 700, marginBottom: 12 }}><span>Total</span><span style={{ color: '#0D9488' }}>₹{Math.round(grandTotal).toLocaleString()}</span></div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => completeBill('cash')} style={{ flex: 2, padding: 12, borderRadius: 10, fontSize: 13, fontWeight: 700, background: cart.length ? '#0D9488' : '#ddd', color: '#fff', border: 'none', cursor: 'pointer' }}>💵 Cash</button>
-                  <button onClick={() => completeBill('upi')} style={{ flex: 1, padding: 12, borderRadius: 10, fontSize: 13, fontWeight: 700, background: cart.length ? '#F59E0B' : '#ddd', color: '#fff', border: 'none', cursor: 'pointer' }}>📱 UPI</button>
+                  <button onClick={() => completeBill('cash')} style={{ flex: 1, padding: 12, borderRadius: 10, fontSize: 13, fontWeight: 700, background: '#0D9488', color: '#fff', border: 'none', cursor: 'pointer' }}>💵 Cash</button>
+                  <button onClick={() => completeBill('upi')} style={{ flex: 1, padding: 12, borderRadius: 10, fontSize: 13, fontWeight: 700, background: '#F59E0B', color: '#fff', border: 'none', cursor: 'pointer' }}>📱 UPI</button>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* INVENTORY TAB */}
-        {tab === 'inventory' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700 }}>📦 {t.inventory}</h3>
-              <button onClick={() => setShowAddProduct(!showAddProduct)} style={{ padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: '#0D9488', color: '#fff', border: 'none', cursor: 'pointer' }}>
-                {showAddProduct ? '❌ Cancel' : '+ Add Product'}
-              </button>
-            </div>
-
-            {showAddProduct && (
-              <div style={{ background: '#f9f9f9', borderRadius: 12, padding: 16, marginBottom: 16 }}>
-                <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Add New Product</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-                  <input type="text" placeholder="Product Name" value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 14 }} />
-                  <input type="number" placeholder="Price (₹)" value={newProduct.price} onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 14 }} />
-                  <input type="number" placeholder="Stock Quantity" value={newProduct.stock} onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 14 }} />
-                  <input type="text" placeholder="Category" value={newProduct.category} onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 14 }} />
-                </div>
-                <button onClick={addProductToInventory} style={{ width: '100%', padding: 12, borderRadius: 8, fontSize: 14, fontWeight: 700, background: '#0D9488', color: '#fff', border: 'none', cursor: 'pointer', marginTop: 12 }}>Add Product</button>
-              </div>
-            )}
-
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ background: '#f9f9f9', borderBottom: '1px solid #e0e0e0' }}>
-                    <th style={{ textAlign: 'left', padding: '12px', fontWeight: 600 }}>Product</th>
-                    <th style={{ textAlign: 'right', padding: '12px', fontWeight: 600 }}>Price</th>
-                    <th style={{ textAlign: 'right', padding: '12px', fontWeight: 600 }}>Stock</th>
-                    <th style={{ textAlign: 'left', padding: '12px', fontWeight: 600 }}>Category</th>
-                    <th style={{ textAlign: 'center', padding: '12px', fontWeight: 600 }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map((p) => (
-                    <tr key={p.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: '12px', fontWeight: 500 }}>{p.name}</td>
-                      <td style={{ textAlign: 'right', padding: '12px' }}>₹{p.price}</td>
-                      <td style={{ textAlign: 'right', padding: '12px', color: p.stock < 10 ? '#DC2626' : '#059669', fontWeight: 600 }}>{p.stock}</td>
-                      <td style={{ padding: '12px' }}>{p.category}</td>
-                      <td style={{ textAlign: 'center', padding: '12px' }}>
-                        <span style={{ fontSize: 11, background: p.stock < 10 ? '#FEF2F2' : '#E6F7F5', color: p.stock < 10 ? '#DC2626' : '#059669', padding: '4px 8px', borderRadius: 4, fontWeight: 600 }}>
-                          {p.stock < 10 ? '⚠️ Low' : '✓ OK'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* REPORTS TAB */}
         {tab === 'reports' && (
           <div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>📊 {t.reports}</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 24 }}>
-              <div style={{ background: '#f9f9f9', borderRadius: 12, padding: 16, border: '1px solid #e0e0e0' }}>
-                <p style={{ fontSize: 11, color: '#999', fontWeight: 600, marginBottom: 4 }}>Today's Sales</p>
-                <p style={{ fontSize: 24, fontWeight: 700, color: '#0D9488' }}>₹{todaySales.toLocaleString()}</p>
-              </div>
-              <div style={{ background: '#f9f9f9', borderRadius: 12, padding: 16, border: '1px solid #e0e0e0' }}>
-                <p style={{ fontSize: 11, color: '#999', fontWeight: 600, marginBottom: 4 }}>Total Bills</p>
-                <p style={{ fontSize: 24, fontWeight: 700, color: '#0D9488' }}>{bills.length}</p>
-              </div>
-              <div style={{ background: '#f9f9f9', borderRadius: 12, padding: 16, border: '1px solid #e0e0e0' }}>
-                <p style={{ fontSize: 11, color: '#999', fontWeight: 600, marginBottom: 4 }}>Avg Bill Value</p>
-                <p style={{ fontSize: 24, fontWeight: 700, color: '#0D9488' }}>₹{bills.length > 0 ? Math.round(sum(bills, 'total') / bills.length).toLocaleString() : '0'}</p>
-              </div>
-            </div>
-
-            <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Recent Bills</h4>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                <thead>
-                  <tr style={{ background: '#f9f9f9', borderBottom: '1px solid #e0e0e0' }}>
-                    <th style={{ textAlign: 'left', padding: '10px', fontWeight: 600 }}>Bill #</th>
-                    <th style={{ textAlign: 'left', padding: '10px', fontWeight: 600 }}>Date</th>
-                    <th style={{ textAlign: 'right', padding: '10px', fontWeight: 600 }}>Total</th>
-                    <th style={{ textAlign: 'center', padding: '10px', fontWeight: 600 }}>Mode</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bills.slice(0, 10).map((b) => (
-                    <tr key={b.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: '10px', fontWeight: 500 }}>BILL{String(b.num).padStart(6, '0')}</td>
-                      <td style={{ padding: '10px' }}>{b.date} {b.time}</td>
-                      <td style={{ textAlign: 'right', padding: '10px', fontWeight: 600 }}>₹{b.total.toLocaleString()}</td>
-                      <td style={{ textAlign: 'center', padding: '10px' }}>
-                        <span style={{ fontSize: 10, background: b.mode === 'cash' ? '#E6F7F5' : '#FEF2F2', color: b.mode === 'cash' ? '#059669' : '#DC2626', padding: '3px 8px', borderRadius: 4, fontWeight: 600 }}>
-                          {b.mode === 'cash' ? '💵 Cash' : '📱 ' + b.mode}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* OTHER TABS */}
-        {!['billing', 'inventory', 'reports'].includes(tab) && (
-          <div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>📋 {tab.toUpperCase()}</h3>
-            <p style={{ color: '#999' }}>This feature is coming soon for {industry?.name}</p>
+            <h3>Reports</h3>
+            <p>Total Bills: {bills.length}</p>
+            <p>Total Sales: ₹{sum(bills, 'total').toLocaleString()}</p>
           </div>
         )}
       </div>
