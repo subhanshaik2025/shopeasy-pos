@@ -122,7 +122,7 @@ export default function AuthPage({ onLoginSuccess }) {
       <div style={card}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ fontSize: 13, letterSpacing: 4, color: MUTED, marginBottom: 8, textTransform: 'uppercase' }}>Welcome to</div>
-          <div style={{ fontSize: 36, fontWeight: 700, letterSpacing: 6, color: GOLD }}>FAR — POS</div>
+          <img src='/logo.png' style={{height:80,objectFit:'contain',marginBottom:8}} alt='FAR POS' />
           <div style={{ fontSize: 12, color: '#555', marginTop: 8, letterSpacing: 2, textTransform: 'uppercase' }}>Point of Sale System</div>
           <div style={{ width: 40, height: 2, background: GOLD, margin: '16px auto 0', borderRadius: 2 }}></div>
         </div>
