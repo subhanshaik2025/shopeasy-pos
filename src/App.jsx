@@ -4,7 +4,7 @@ import { getCurrentUser, isUserLoggedIn, logoutUser } from './auth';
 import { INDUSTRIES } from './config';
 import { generateId, calculateTotal } from './utils';
 import { initializeAppData } from './loadGoogleSheet';
-import { saveBillToSheet, getSalesFromSheet } from './salesSheets';
+import { saveBillToSheet, getSalesFromSheet, saveProductsToSheet, getProductsFromSheet, saveKhataToSheet, getKhataFromSheet, saveExpensesToSheet, getExpensesFromSheet, saveSettingsToSheet, getSettingsFromSheet } from './salesSheets';
 
 const GOLD='#C9A84C',GOLD_L='#E8C97A',BG='#0F0F0F',SURF='#1A1A1A',BOR='#2A2A2A',TX='#DDDDDD',MU='#888',DIM='#555';
 
@@ -60,13 +60,14 @@ export default function POSApp() {
     }
   },[]);
 
-  const saveProducts=(p,user)=>{
+  const saveProducts=async(p,user)=>{
     setProducts(p);
     localStorage.setItem('pos-products-'+(user||currentUser).id,JSON.stringify(p));
+    await saveProductsToSheet(p, user||currentUser);
   };
-  const saveKhata=(k)=>{ setKhata(k); localStorage.setItem('pos-khata-'+currentUser.id,JSON.stringify(k)); };
-  const saveExpenses=(e)=>{ setExpenses(e); localStorage.setItem('pos-expenses-'+currentUser.id,JSON.stringify(e)); };
-  const saveSettings=(s)=>{ setShopSettings(s); localStorage.setItem('pos-settings-'+currentUser.id,JSON.stringify(s)); };
+  const saveKhata=async(k)=>{ setKhata(k); localStorage.setItem('pos-khata-'+currentUser.id,JSON.stringify(k)); await saveKhataToSheet(k,currentUser); };
+  const saveExpenses=async(e)=>{ setExpenses(e); localStorage.setItem('pos-expenses-'+currentUser.id,JSON.stringify(e)); await saveExpensesToSheet(e,currentUser); };
+  const saveSettings=async(s)=>{ setShopSettings(s); localStorage.setItem('pos-settings-'+currentUser.id,JSON.stringify(s)); await saveSettingsToSheet(s,currentUser); };
 
   const handleLoginSuccess=(user)=>{
     setCurrentUser(user);
