@@ -604,7 +604,7 @@ export default function POSApp() {
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
               <p style={{...sT,margin:0}}>Bill History</p>
               <button onClick={sendDailySummary} style={{...goldBtn(false),fontSize:12,padding:'6px 14px'}}>📊 WhatsApp Summary</button>
-              <button onClick={()=>getSalesFromSheet(currentUser.shop_name).then(s=>setBills(s))} style={ghostBtn}>Refresh</button>
+              <button onClick={()=>getSalesFromSheet(currentUser).then(s=>setBills(s))} style={ghostBtn}>Refresh</button>
             </div>
             <input placeholder='Search by bill ID, amount or date...' value={billSearch} onChange={e=>setBillSearch(e.target.value)} style={{...inp,marginBottom:16}} />
             {showBillDetail&&(
