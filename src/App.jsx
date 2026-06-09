@@ -47,16 +47,16 @@ export default function POSApp() {
       setIsLoggedIn(true);
       const ind=INDUSTRIES[user.industry_type];
       setIndustry(ind);
-      const saved=localStorage.getItem('pos-products-'+user.id);
-      if(saved) setProducts(JSON.parse(saved));
-      else setProducts(ind.sampleProducts||[]);
-      getSalesFromSheet(user.shop_name).then(s=>setBills(s));
-      const st=localStorage.getItem('pos-settings-'+user.id);
-      if(st) setShopSettings(JSON.parse(st));
-    const k=localStorage.getItem('pos-khata-'+user.id);
-      if(k) setKhata(JSON.parse(k));
-      const e=localStorage.getItem('pos-expenses-'+user.id);
-      if(e) setExpenses(JSON.parse(e));
+      getSalesFromSheet(user).then(s=>setBills(s));
+      getProductsFromSheet(user).then(p=>{ if(p&&p.length>0) setProducts(p); else { const sv=localStorage.getItem('pos-products-'+user.id); if(sv) setProducts(JSON.parse(sv)); else setProducts(ind.sampleProducts||[]); } });
+      getSettingsFromSheet(user).then(st=>{ if(st) setShopSettings(st); else { const sv=localStorage.getItem('pos-settings-'+user.id); if(sv) setShopSettings(JSON.parse(sv)); } });
+      getKhataFromSheet(user).then(k=>{ if(k&&k.length>0) setKhata(k); else { const sv=localStorage.getItem('pos-khata-'+user.id); if(sv) setKhata(JSON.parse(sv)); } });
+      getExpensesFromSheet(user).then(e=>{ if(e&&e.length>0) setExpenses(e); else { const sv=localStorage.getItem('pos-expenses-'+user.id); if(sv) setExpenses(JSON.parse(sv)); } });
+
+
+
+
+
     }
   },[]);
 
@@ -74,14 +74,14 @@ export default function POSApp() {
     setIsLoggedIn(true);
     const ind=INDUSTRIES[user.industry_type];
     setIndustry(ind);
-    const saved=localStorage.getItem('pos-products-'+user.id);
-    if(saved) setProducts(JSON.parse(saved));
-    else setProducts(ind.sampleProducts||[]);
-    getSalesFromSheet(user.shop_name).then(s=>setBills(s));
-    const k=localStorage.getItem('pos-khata-'+user.id);
-    if(k) setKhata(JSON.parse(k));
-    const e=localStorage.getItem('pos-expenses-'+user.id);
-    if(e) setExpenses(JSON.parse(e));
+    getSalesFromSheet(user).then(s=>setBills(s));
+    getProductsFromSheet(user).then(p=>{ if(p&&p.length>0) setProducts(p); else { const sv=localStorage.getItem('pos-products-'+user.id); if(sv) setProducts(JSON.parse(sv)); else setProducts(ind.sampleProducts||[]); } });
+    getSettingsFromSheet(user).then(st=>{ if(st) setShopSettings(st); else { const sv=localStorage.getItem('pos-settings-'+user.id); if(sv) setShopSettings(JSON.parse(sv)); } });
+    getKhataFromSheet(user).then(k=>{ if(k&&k.length>0) setKhata(k); else { const sv=localStorage.getItem('pos-khata-'+user.id); if(sv) setKhata(JSON.parse(sv)); } });
+    getExpensesFromSheet(user).then(e=>{ if(e&&e.length>0) setExpenses(e); else { const sv=localStorage.getItem('pos-expenses-'+user.id); if(sv) setExpenses(JSON.parse(sv)); } });
+
+
+
   };
 
   const handleLogout=()=>{ logoutUser(); setIsLoggedIn(false); setCurrentUser(null); setCart([]); setBills([]); };
