@@ -40,8 +40,16 @@ export default function POSApp() {
   const [editSettings,setEditSettings]=useState(false);
   const [lang,setLang]=useState(localStorage.getItem('far-pos-lang')||'en');
   const t=(k)=>(TRANSLATIONS[lang]&&TRANSLATIONS[lang][k])||TRANSLATIONS['en'][k]||k;
+  const [toast,setToast]=useState(null);
+  const [appLoading,setAppLoading]=useState(true);
+  const [isOnline,setIsOnline]=useState(navigator.onLine);
+  const showToast=(msg,type='success')=>{ setToast({msg,type}); setTimeout(()=>setToast(null),3000); };
 
   useEffect(()=>{
+    const onOnline=()=>setIsOnline(true);
+    const onOffline=()=>setIsOnline(false);
+    window.addEventListener('online',onOnline);
+    window.addEventListener('offline',onOffline);
     initializeAppData();
     if(isUserLoggedIn()){
       const user=getCurrentUser();
@@ -49,11 +57,14 @@ export default function POSApp() {
       setIsLoggedIn(true);
       const ind=INDUSTRIES[user.industry_type];
       setIndustry(ind);
-      getSalesFromSheet(user).then(s=>setBills(s));
-      getProductsFromSheet(user).then(p=>{ if(p&&p.length>0) setProducts(p); else { const sv=localStorage.getItem('pos-products-'+user.id); if(sv) setProducts(JSON.parse(sv)); else setProducts(ind.sampleProducts||[]); } });
-      getSettingsFromSheet(user).then(st=>{ if(st) setShopSettings(st); else { const sv=localStorage.getItem('pos-settings-'+user.id); if(sv) setShopSettings(JSON.parse(sv)); } });
-      getKhataFromSheet(user).then(k=>{ if(k&&k.length>0) setKhata(k); else { const sv=localStorage.getItem('pos-khata-'+user.id); if(sv) setKhata(JSON.parse(sv)); } });
-      getExpensesFromSheet(user).then(e=>{ if(e&&e.length>0) setExpenses(e); else { const sv=localStorage.getItem('pos-expenses-'+user.id); if(sv) setExpenses(JSON.parse(sv)); } });
+      Promise.all([
+        getSalesFromSheet(user).then(s=>setBills(s)),
+        getProductsFromSheet(user).then(p=>{ if(p&&p.length>0) setProducts(p); else { const sv=localStorage.getItem('pos-products-'+user.id); if(sv) setProducts(JSON.parse(sv)); else setProducts(ind.sampleProducts||[]); } }),
+        getSettingsFromSheet(user).then(st=>{ if(st) setShopSettings(st); else { const sv=localStorage.getItem('pos-settings-'+user.id); if(sv) setShopSettings(JSON.parse(sv)); } }),
+        getKhataFromSheet(user).then(k=>{ if(k&&k.length>0) setKhata(k); else { const sv=localStorage.getItem('pos-khata-'+user.id); if(sv) setKhata(JSON.parse(sv)); } }),
+        getExpensesFromSheet(user).then(e=>{ if(e&&e.length>0) setExpenses(e); else { const sv=localStorage.getItem('pos-expenses-'+user.id); if(sv) setExpenses(JSON.parse(sv)); } }),
+      ]).finally(()=>setAppLoading(false));
+
 
 
 
@@ -76,11 +87,14 @@ export default function POSApp() {
     setIsLoggedIn(true);
     const ind=INDUSTRIES[user.industry_type];
     setIndustry(ind);
-    getSalesFromSheet(user).then(s=>setBills(s));
-    getProductsFromSheet(user).then(p=>{ if(p&&p.length>0) setProducts(p); else { const sv=localStorage.getItem('pos-products-'+user.id); if(sv) setProducts(JSON.parse(sv)); else setProducts(ind.sampleProducts||[]); } });
-    getSettingsFromSheet(user).then(st=>{ if(st) setShopSettings(st); else { const sv=localStorage.getItem('pos-settings-'+user.id); if(sv) setShopSettings(JSON.parse(sv)); } });
-    getKhataFromSheet(user).then(k=>{ if(k&&k.length>0) setKhata(k); else { const sv=localStorage.getItem('pos-khata-'+user.id); if(sv) setKhata(JSON.parse(sv)); } });
-    getExpensesFromSheet(user).then(e=>{ if(e&&e.length>0) setExpenses(e); else { const sv=localStorage.getItem('pos-expenses-'+user.id); if(sv) setExpenses(JSON.parse(sv)); } });
+    setAppLoading(true);
+    Promise.all([
+      getSalesFromSheet(user).then(s=>setBills(s)),
+      getProductsFromSheet(user).then(p=>{ if(p&&p.length>0) setProducts(p); else { const sv=localStorage.getItem('pos-products-'+user.id); if(sv) setProducts(JSON.parse(sv)); else setProducts(ind.sampleProducts||[]); } }),
+      getSettingsFromSheet(user).then(st=>{ if(st) setShopSettings(st); else { const sv=localStorage.getItem('pos-settings-'+user.id); if(sv) setShopSettings(JSON.parse(sv)); } }),
+      getKhataFromSheet(user).then(k=>{ if(k&&k.length>0) setKhata(k); else { const sv=localStorage.getItem('pos-khata-'+user.id); if(sv) setKhata(JSON.parse(sv)); } }),
+      getExpensesFromSheet(user).then(e=>{ if(e&&e.length>0) setExpenses(e); else { const sv=localStorage.getItem('pos-expenses-'+user.id); if(sv) setExpenses(JSON.parse(sv)); } }),
+    ]).finally(()=>setAppLoading(false));
 
 
 
@@ -97,7 +111,7 @@ export default function POSApp() {
   const {grandTotal,gst}=calculateTotal(afterDiscount,gstPct);
 
   const addToCart=(p)=>{
-    if(p.stock!==undefined && p.stock<=0){ alert('Out of stock'); return; }
+    if(p.stock!==undefined && p.stock<=0){ showToast('Out of stock','error'); return; }
     const ex=cart.find(c=>c.id===p.id);
     setCart(ex?cart.map(c=>c.id===p.id?{...c,qty:c.qty+1}:c):[...cart,{...p,qty:1}]);
   };
@@ -301,7 +315,7 @@ export default function POSApp() {
   };
 
   const completeBill=async(mode)=>{
-    if(cart.length===0){alert('Cart is empty');return;}
+    if(cart.length===0){showToast('Cart is empty','error');return;}
     setLoadingBill(true);
     const bill={
       id:generateId('bill'),items:cart,subtotal:Math.round(subtotal),
@@ -383,8 +397,25 @@ export default function POSApp() {
   const card={ background:SURF,border:'1px solid '+BOR,borderRadius:12,padding:16,marginBottom:10 };
   const tabStyle=(a)=>({ padding:'8px 20px',borderRadius:'8px 8px 0 0',fontSize:13,cursor:'pointer',border:'none',background:a?SURF:'transparent',color:a?GOLD:'#555',fontWeight:a?600:400,borderTop:a?'2px solid '+GOLD:'2px solid transparent',whiteSpace:'nowrap' });
 
+  if(appLoading && isLoggedIn) return (
+    <div style={{background:BG,minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16}}>
+      <img src='/logo.png' style={{height:80,objectFit:'contain'}} alt='FAR POS' />
+      <div style={{display:'flex',gap:8,alignItems:'center'}}>
+        <div style={{width:8,height:8,borderRadius:'50%',background:GOLD,animation:'pulse 1s infinite'}}></div>
+        <div style={{width:8,height:8,borderRadius:'50%',background:GOLD,animation:'pulse 1s infinite 0.2s'}}></div>
+        <div style={{width:8,height:8,borderRadius:'50%',background:GOLD,animation:'pulse 1s infinite 0.4s'}}></div>
+      </div>
+      <p style={{fontSize:13,color:MU,letterSpacing:1}}>Loading your data...</p>
+      <style>{`@keyframes pulse{0%,100%{opacity:0.3}50%{opacity:1}}`}</style>
+    </div>
+  );
+
   return (
     <div style={{fontFamily:'sans-serif',background:BG,minHeight:'100vh',color:TX}}>
+      {!isOnline&&<div style={{background:'#2A1000',borderBottom:'1px solid #F97316',padding:'8px 20px',fontSize:12,color:'#F97316',textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>⚠ No internet connection — changes will sync when back online</div>}
+      {toast&&<div style={{position:'fixed',top:20,right:20,zIndex:9999,background:toast.type==='success'?'#1A2A1A':'#2A1010',border:'1px solid '+(toast.type==='success'?'#34D399':'#F87171'),borderRadius:10,padding:'12px 20px',fontSize:13,color:toast.type==='success'?'#34D399':'#F87171',boxShadow:'0 4px 20px rgba(0,0,0,0.5)',display:'flex',alignItems:'center',gap:8}}>
+        {toast.type==='success'?'✅':'⚠️'} {toast.msg}
+      </div>}
       <div style={{background:SURF,borderBottom:'1px solid '+BOR,padding:'14px 20px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <div>
           <img src='/logo.png' style={{height:36,objectFit:'contain'}} alt='FAR POS' />
@@ -482,7 +513,7 @@ export default function POSApp() {
                 </div>
                 <div style={{display:'flex',gap:8}}>
                   <button onClick={()=>{
-                    if(!newProduct.name||!newProduct.price){alert('Name and price required');return;}
+                    if(!newProduct.name||!newProduct.price){showToast('Name and price required','error');return;}
                     if(editProduct){
                       const updated=products.map(p=>p.id===editProduct.id?{...p,...newProduct,price:Number(newProduct.price),stock:newProduct.stock!==''?Number(newProduct.stock):undefined}:p);
                       saveProducts(updated);
@@ -576,7 +607,7 @@ export default function POSApp() {
                 </div>
                 <div style={{display:'flex',gap:8,marginBottom:8}}>
                   <button onClick={()=>{
-                    if(!newKhata.customer||!newKhata.amount){alert('Customer and amount required');return;}
+                    if(!newKhata.customer||!newKhata.amount){showToast('Customer and amount required','error');return;}
                     const entry={id:generateId('kh'),customer:newKhata.customer,phone:newKhata.phone,amount:Number(newKhata.amount),note:newKhata.note,type:'given',date:new Date().toLocaleDateString('en-IN'),paid:false};
                     saveKhata([...khata,entry]);
                     setNewKhata({customer:'',phone:'',amount:'',note:''});
@@ -677,7 +708,7 @@ export default function POSApp() {
                 </div>
                 <div style={{display:'flex',gap:8}}>
                   <button onClick={()=>{
-                    if(!newExpense.title||!newExpense.amount){alert('Fill all fields');return;}
+                    if(!newExpense.title||!newExpense.amount){showToast('Fill all fields','error');return;}
                     const e={id:generateId('exp'),title:newExpense.title,amount:Number(newExpense.amount),category:newExpense.category,date:new Date().toISOString().split('T')[0]};
                     saveExpenses([...expenses,e]);
                     setNewExpense({title:'',amount:'',category:'rent'});
@@ -852,7 +883,7 @@ export default function POSApp() {
                   />
                 </div>
                 <div style={{display:'flex',gap:8}}>
-                  <button onClick={()=>{saveSettings(shopSettings);setEditSettings(false);alert('Settings saved!');}} style={goldBtn(false)}>Save Settings</button>
+                  <button onClick={()=>{saveSettings(shopSettings);setEditSettings(false);showToast('Settings saved!','success');}} style={goldBtn(false)}>Save Settings</button>
                   <button onClick={()=>setEditSettings(false)} style={ghostBtn}>Cancel</button>
                 </div>
               </div>
