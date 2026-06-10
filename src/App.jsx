@@ -38,6 +38,7 @@ export default function POSApp() {
   const [showBillDetail,setShowBillDetail]=useState(null);
   const [shopSettings,setShopSettings]=useState({gstin:'',gstPercent:5,shopAddress:'',shopPhone:''});
   const [editSettings,setEditSettings]=useState(false);
+  const userRef=React.useRef(null);
   const [lang,setLang]=useState(localStorage.getItem('far-pos-lang')||'en');
   const t=(k)=>(TRANSLATIONS[lang]&&TRANSLATIONS[lang][k])||TRANSLATIONS['en'][k]||k;
   const [toast,setToast]=useState(null);
@@ -54,6 +55,7 @@ export default function POSApp() {
     if(isUserLoggedIn()){
       const user=getCurrentUser();
       setCurrentUser(user);
+      userRef.current=user;
       setIsLoggedIn(true);
       const ind=INDUSTRIES[user.industry_type];
       setIndustry(ind);
@@ -83,6 +85,7 @@ export default function POSApp() {
   const saveSettings=async(s)=>{ setShopSettings(s); localStorage.setItem('pos-settings-'+currentUser.id,JSON.stringify(s)); await saveSettingsToSheet(s,currentUser); };
 
   const handleLoginSuccess=(user)=>{
+    userRef.current=user;
     setCurrentUser(user);
     setIsLoggedIn(true);
     const ind=INDUSTRIES[user.industry_type];
@@ -333,6 +336,7 @@ export default function POSApp() {
     const updated=[...bills,bill];
     setBills(updated);
     localStorage.setItem('pos-bills',JSON.stringify(updated));
+    getSalesFromSheet(userRef.current||currentUser).then(s=>{ if(s&&s.length>0) setBills(s); });
     setCart([]); setDiscount(0); setLoadingBill(false);
     const billText=generateBillText(bill);
     window.open('https://wa.me/?text='+encodeURIComponent(billText),'_blank');
@@ -660,7 +664,7 @@ export default function POSApp() {
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
               <p style={{...sT,margin:0}}>Bill History</p>
               <button onClick={sendDailySummary} style={{...goldBtn(false),fontSize:12,padding:'6px 14px'}}>📊 WhatsApp Summary</button>
-              <button onClick={()=>getSalesFromSheet(currentUser).then(s=>setBills(s))} style={ghostBtn}>Refresh</button>
+              <button onClick={()=>getSalesFromSheet(userRef.current||currentUser).then(s=>setBills(s))} style={ghostBtn}>Refresh</button>
             </div>
             <input placeholder='Search by bill ID, amount or date...' value={billSearch} onChange={e=>setBillSearch(e.target.value)} style={{...inp,marginBottom:16}} />
             {showBillDetail&&(
@@ -669,12 +673,12 @@ export default function POSApp() {
                   <p style={{...sT,margin:0}}>Bill Detail</p>
                   <button onClick={()=>setShowBillDetail(null)} style={ghostBtn}>Close</button>
                 </div>
-                <p style={{fontSize:12,color:MU,margin:'0 0 4px'}}>ID: {showBillDetail.id}</p>
+                <p style={{fontSize:12,color:MU,margin:'0 0 4px'}}>ID: {showBillDetail.id||showBillDetail.bill_id}</p>
                 <p style={{fontSize:12,color:MU,margin:'0 0 12px'}}>Date: {showBillDetail.date} · {(showBillDetail.mode||showBillDetail.payment_mode||'').toUpperCase()}</p>
                 {(()=>{ try { return typeof showBillDetail.items_json==='string'?JSON.parse(showBillDetail.items_json):(showBillDetail.items||[]); } catch(e){return[];} })().map((item,i)=>(
                   <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid #222'}}>
                     <span style={{fontSize:13,color:TX}}>{item.name} × {item.qty}</span>
-                    <span style={{fontSize:13,color:GOLD}}>Rs. {(item.price*item.qty).toLocaleString()}</span>
+                    <span style={{fontSize:13,color:GOLD}}>Rs. {(Number(item.price||0)*Number(item.qty||1)).toLocaleString()}</span>
                   </div>
                 ))}
                 <div style={{marginTop:12,paddingTop:12,borderTop:'1px solid #333'}}>
@@ -693,10 +697,10 @@ export default function POSApp() {
               const q=billSearch.toLowerCase();
               return b.id?.toLowerCase().includes(q)||String(b.total).includes(q)||b.date?.includes(q);
             }).map(b=>(
-              <div key={b.id} onClick={()=>setShowBillDetail(b)} style={{...card,cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div key={b.id||b.bill_id} onClick={()=>setShowBillDetail(b)} style={{...card,cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                 <div>
-                  <p style={{margin:'0 0 3px',fontSize:13,fontWeight:600,color:TX}}>{b.id}</p>
-                  <p style={{margin:0,fontSize:11,color:DIM}}>{b.date} · {(b.mode||b.payment_mode||'').toUpperCase()}</p>
+                  <p style={{margin:'0 0 3px',fontSize:13,fontWeight:600,color:TX}}>{b.id||b.bill_id}</p>
+                  <p style={{margin:0,fontSize:11,color:DIM}}>{b.date||''} · {(b.mode||b.payment_mode||'').toUpperCase()}</p>
                 </div>
                 <span style={{fontSize:16,fontWeight:700,color:GOLD}}>Rs. {Number(b.total).toLocaleString()}</span>
               </div>
