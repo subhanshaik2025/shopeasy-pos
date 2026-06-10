@@ -1,4 +1,4 @@
-const CACHE = 'farpos-v1';
+const CACHE = 'farpos-v5';
 const ASSETS = ['/', '/index.html'];
 
 self.addEventListener('install', e => {
