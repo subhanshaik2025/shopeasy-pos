@@ -34,7 +34,7 @@ export default function HistoryTab({ bills, setBills, currentUser, userRef, getS
             <button onClick={()=>setDetail(null)} style={ghostBtn}>Close</button>
           </div>
           <p style={{fontSize:12,color:MU,margin:'0 0 4px'}}>ID: {detail.id||detail.bill_id||'—'}</p>
-          <p style={{fontSize:12,color:MU,margin:'0 0 12px'}}>Date: {detail.date||'—'} · {(detail.mode||detail.payment_mode||'').toUpperCase()}</p>
+          <p style={{fontSize:12,color:MU,margin:'0 0 12px'}}>Date: {detail.date||'—'} · {String(detail.mode||detail.payment_mode||'').toUpperCase()}</p>
           {parseItems(detail).map((item,i)=>(
             <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid #222'}}>
               <span style={{fontSize:13,color:TX}}>{item.name||'Item'} × {Number(item.qty||1)}</span>
@@ -57,7 +57,7 @@ export default function HistoryTab({ bills, setBills, currentUser, userRef, getS
         <div key={b.id||b.bill_id||Math.random()} onClick={()=>setDetail(b)} style={{...card,cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div>
             <p style={{margin:'0 0 3px',fontSize:13,fontWeight:600,color:TX}}>{b.id||b.bill_id||'—'}</p>
-            <p style={{margin:0,fontSize:11,color:DIM}}>{b.date||''} · {(b.mode||b.payment_mode||'').toUpperCase()}</p>
+            <p style={{margin:0,fontSize:11,color:DIM}}>{b.date||''} · {String(b.mode||b.payment_mode||'').toUpperCase()}</p>
           </div>
           <span style={{fontSize:16,fontWeight:700,color:GOLD}}>Rs. {Number(b.total||0).toLocaleString()}</span>
         </div>
