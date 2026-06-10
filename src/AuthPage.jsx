@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { GOLD, BG, SURF, BOR, TX, MU, DIM } from './utils/theme';
 import { registerUser, loginUser } from './auth';
 import { verifyPhoneNumberFromSheet } from './googleSheets';
 import { INDUSTRIES } from './config';
