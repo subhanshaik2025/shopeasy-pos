@@ -122,7 +122,7 @@ export default function POSApp() {
   };
 
   const generateBillText=(bill)=>{
-    const items=(typeof bill.items_json==='string'?JSON.parse(bill.items_json):(bill.items||[]));
+    let items=[]; try { items=typeof bill.items_json==='string'?JSON.parse(bill.items_json):(bill.items||[]); } catch(e){items=[];}
     const time=new Date(bill.timestamp).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
     let msg='';
     msg+='🧾 FAR-POS — Bill Receipt\n';
@@ -152,7 +152,7 @@ export default function POSApp() {
   };
 
   const generateGSTInvoice=(bill)=>{
-    const items=(typeof bill.items_json==='string'?JSON.parse(bill.items_json):(bill.items||[]));
+    let items=[]; try { items=typeof bill.items_json==='string'?JSON.parse(bill.items_json):(bill.items||[]); } catch(e){items=[];}
     const billGstPct=bill.gstPercent||shopSettings.gstPercent||5;
     const cgst=Math.round(Number(bill.gst||0)/2);
     const sgst=cgst;
@@ -339,14 +339,32 @@ export default function POSApp() {
   };
 
   const shareOnWhatsApp=(bill)=>{
-    const items=(typeof bill.items_json==='string'?JSON.parse(bill.items_json):(bill.items||[]));
+    let items=[]; try { items=typeof bill.items_json==='string'?JSON.parse(bill.items_json):(bill.items||[]); } catch(e){items=[];}
     let msg='*'+currentUser.shop_name+'*\nBill: '+bill.id+'\nDate: '+bill.date+'\n\n';
     items.forEach(i=>{ msg+=i.name+' x'+i.qty+' = Rs.'+i.price*i.qty+'\n'; });
     msg+='\nTotal: Rs.'+bill.total+'\nPayment: '+(bill.mode||bill.payment_mode).toUpperCase();
     window.open('https://wa.me/?text='+encodeURIComponent(msg));
   };
 
-  const parseBillDate=(b)=>{ try { if(b.timestamp&&String(b.timestamp).length>8) return new Date(b.timestamp); if(b.date) { const p=String(b.date).split("/"); if(p.length===3) return new Date(p[2]+"-"+p[1].padStart(2,"0")+"-"+p[0].padStart(2,"0")); return new Date(b.date); } return new Date(); } catch(e){return new Date();} };
+  const parseBillDate=(b)=>{ 
+    try { 
+      if(b.timestamp){ 
+        const t=new Date(b.timestamp); 
+        if(!isNaN(t.getTime())) return t; 
+      } 
+      if(b.date){ 
+        const s=String(b.date).trim();
+        const p=s.split('/'); 
+        if(p.length===3) { 
+          const d=new Date(p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0')); 
+          if(!isNaN(d.getTime())) return d; 
+        }
+        const d2=new Date(s);
+        if(!isNaN(d2.getTime())) return d2;
+      } 
+      return new Date(); 
+    } catch(e){return new Date();} 
+  };
   const filterByDate=(bills,d)=>bills.filter(b=>parseBillDate(b).toISOString().split('T')[0]===d);
   const filterByWeek=(bills)=>{const w=new Date(Date.now()-7*86400000);return bills.filter(b=>parseBillDate(b)>=w);};
   const filterByMonth=(bills)=>{const n=new Date();return bills.filter(b=>{const d=parseBillDate(b);return d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear();});};
@@ -354,7 +372,7 @@ export default function POSApp() {
   const getTopProducts=(bs)=>{
     const map={};
     bs.forEach(b=>{
-      const items=typeof b.items_json==='string'?JSON.parse(b.items_json):(b.items||[]);
+      let items=[]; try { items=typeof b.items_json==='string'?JSON.parse(b.items_json):(b.items||[]); } catch(e){items=[];}
       items.forEach(item=>{
         if(!map[item.name])map[item.name]={name:item.name,qty:0,revenue:0};
         map[item.name].qty+=item.qty; map[item.name].revenue+=item.price*item.qty;
@@ -376,7 +394,7 @@ export default function POSApp() {
   };
 
   const selectedBills=reportView==='daily'?filterByDate(bills,selectedDate):reportView==='weekly'?filterByWeek(bills):filterByMonth(bills);
-  const totalSales=selectedBills.reduce((s,b)=>s+Number(b.total),0);
+  const totalSales=selectedBills.reduce((s,b)=>s+Number(b.total||0),0);
   const cashSales=selectedBills.filter(b=>(b.mode||b.payment_mode)==='cash').reduce((s,b)=>s+Number(b.total),0);
   const upiSales=selectedBills.filter(b=>(b.mode||b.payment_mode)==='upi').reduce((s,b)=>s+Number(b.total),0);
   const gstTotal=selectedBills.reduce((s,b)=>s+Number(b.gst||0),0);
@@ -653,7 +671,7 @@ export default function POSApp() {
                 </div>
                 <p style={{fontSize:12,color:MU,margin:'0 0 4px'}}>ID: {showBillDetail.id}</p>
                 <p style={{fontSize:12,color:MU,margin:'0 0 12px'}}>Date: {showBillDetail.date} · {(showBillDetail.mode||showBillDetail.payment_mode||'').toUpperCase()}</p>
-                {(typeof showBillDetail.items_json==='string'?JSON.parse(showBillDetail.items_json):(showBillDetail.items||[])).map((item,i)=>(
+                {(()=>{ try { return typeof showBillDetail.items_json==='string'?JSON.parse(showBillDetail.items_json):(showBillDetail.items||[]); } catch(e){return[];} })().map((item,i)=>(
                   <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid #222'}}>
                     <span style={{fontSize:13,color:TX}}>{item.name} × {item.qty}</span>
                     <span style={{fontSize:13,color:GOLD}}>Rs. {(item.price*item.qty).toLocaleString()}</span>
