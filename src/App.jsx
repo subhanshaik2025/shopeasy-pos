@@ -4,7 +4,7 @@ import { getCurrentUser, isUserLoggedIn, logoutUser } from './auth';
 import { INDUSTRIES, TRANSLATIONS } from './config';
 import { generateId, calculateTotal } from './utils';
 import { initializeAppData } from './loadGoogleSheet';
-import { saveBillToSheet, getSalesFromSheet, saveProductsToSheet, getProductsFromSheet, saveKhataToSheet, getKhataFromSheet, saveExpensesToSheet, getExpensesFromSheet, saveSettingsToSheet, getSettingsFromSheet } from './salesSheets';
+import { getAllVendorData, saveBillToSheet, getSalesFromSheet, saveProductsToSheet, getProductsFromSheet, saveKhataToSheet, getKhataFromSheet, saveExpensesToSheet, getExpensesFromSheet, saveSettingsToSheet, getSettingsFromSheet } from './salesSheets';
 import { GOLD, GOLD_L, BG, BOR, SURF, TX, DIM, MU, inp, goldBtn, ghostBtn, card, sT } from './utils/theme';
 import { parseItems } from './utils/billUtils';
 import BillingTab from './components/BillingTab';
@@ -41,13 +41,17 @@ export default function POSApp() {
 
   const loadUserData = (user, ind) => {
     setAppLoading(true);
-    Promise.all([
-      getSalesFromSheet(user).then(s=>{ if(s&&s.length>=0) setBills(s); }),
-      getProductsFromSheet(user).then(p=>{ if(p&&p.length>0) setProducts(p); else { const sv=localStorage.getItem('pos-products-'+user.id); if(sv) setProducts(JSON.parse(sv)); else setProducts(ind.sampleProducts||[]); } }),
-      getSettingsFromSheet(user).then(st=>{ if(st) setShopSettings(st); else { const sv=localStorage.getItem('pos-settings-'+user.id); if(sv) setShopSettings(JSON.parse(sv)); } }),
-      getKhataFromSheet(user).then(k=>{ if(k&&k.length>0) setKhata(k); else { const sv=localStorage.getItem('pos-khata-'+user.id); if(sv) setKhata(JSON.parse(sv)); } }),
-      getExpensesFromSheet(user).then(e=>{ if(e&&e.length>0) setExpenses(e); else { const sv=localStorage.getItem('pos-expenses-'+user.id); if(sv) setExpenses(JSON.parse(sv)); } }),
-    ]).finally(()=>setAppLoading(false));
+    getAllVendorData(user).then(data => {
+      if(data.sales&&data.sales.length>=0) setBills(data.sales);
+      if(data.products&&data.products.length>0) setProducts(data.products);
+      else { const sv=localStorage.getItem('pos-products-'+user.id); if(sv) setProducts(JSON.parse(sv)); else setProducts(ind.sampleProducts||[]); }
+      if(data.settings) setShopSettings(data.settings);
+      else { const sv=localStorage.getItem('pos-settings-'+user.id); if(sv) setShopSettings(JSON.parse(sv)); }
+      if(data.khata&&data.khata.length>0) setKhata(data.khata);
+      else { const sv=localStorage.getItem('pos-khata-'+user.id); if(sv) setKhata(JSON.parse(sv)); }
+      if(data.expenses&&data.expenses.length>0) setExpenses(data.expenses);
+      else { const sv=localStorage.getItem('pos-expenses-'+user.id); if(sv) setExpenses(JSON.parse(sv)); }
+    }).finally(()=>setAppLoading(false));
   };
 
   useEffect(()=>{

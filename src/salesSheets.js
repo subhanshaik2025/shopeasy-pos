@@ -1,4 +1,4 @@
-const URL = 'https://script.google.com/macros/s/AKfycbyMUZGS_e2hQkaz24p5QPAjUD2JmF-1tniTvGtgEHi-JFn9JgxoJHMaOsF6Wm4WtcjhyA/exec';
+const URL = 'https://script.google.com/macros/s/AKfycbyRfGzFamfuZ2-MhR5kp6uDXkR1jNGi4hOHmZfT5lFN-MCtltamSc7rHIdi21_Tj5YaLQ/exec';
 
 const call = async (params) => {
   try {
@@ -6,6 +6,12 @@ const call = async (params) => {
     return await res.json();
   } catch(e) { console.error('Sheet error:', e); return { success: false }; }
 };
+
+export async function getAllVendorData(user) {
+  const data = await call({ action:'getAllVendorData', vendor_id:user.id, shop_name:user.shop_name });
+  if (data.success) return data;
+  return { products:[], khata:[], expenses:[], settings:null, sales:[] };
+}
 
 export async function saveBillToSheet(bill, user) {
   return call({ action:'saveBill', vendor_id:user.id, bill_id:bill.id, shop_phone:user.phone, shop_name:user.shop_name, items_json:JSON.stringify(bill.items), subtotal:bill.subtotal, discount:bill.discount||0, gst:bill.gst, gst_percent:bill.gstPercent||5, total:bill.total, payment_mode:bill.mode, date:bill.date, timestamp:bill.timestamp });
