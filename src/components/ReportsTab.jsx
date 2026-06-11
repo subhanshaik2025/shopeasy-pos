@@ -1,22 +1,7 @@
 import { useState } from 'react';
 import { GOLD, GOLD_L, BOR, SURF, TX, DIM, MU, inp, goldBtn, ghostBtn, card, sT } from '../utils/theme';
 import { getSalesFromSheet } from '../salesSheets';
-
-function normalizeBill(b) {
-  const dateStr = b.date || b.timestamp || '';
-  let parsedDate = new Date();
-  try { const d = new Date(dateStr); if (!isNaN(d)) parsedDate = d; } catch(e){}
-  return {
-    ...b,
-    _id: String(b.id || b.bill_id || ''),
-    _total: Number(b.total || 0),
-    _gst: Number(b.gst || 0),
-    _discount: Number(b.discount || 0),
-    _mode: String(b.mode || b.payment_mode || '').toLowerCase().trim(),
-    _date: parsedDate,
-    _items: (() => { try { return typeof b.items_json==='string'&&b.items_json ? JSON.parse(b.items_json) : (b.items||[]); } catch(e){ return []; } })(),
-  };
-}
+import { normalizeBill, localDateStr } from '../utils/billUtils';
 
 function getTopProducts(bills) {
   const map = {};
@@ -34,7 +19,7 @@ function getTopProducts(bills) {
 function getDayWise(bills) {
   const map = {};
   bills.forEach(b => {
-    const d = b._date.toISOString().split('T')[0];
+    const d = localDateStr(b._date);
     if (!map[d]) map[d] = { date:d, total:0, cash:0, upi:0, count:0 };
     map[d].total += b._total;
     map[d].count++;
@@ -46,16 +31,16 @@ function getDayWise(bills) {
 
 export default function ReportsTab({ bills, setBills, expenses, saveExpenses, currentUser, userRef, generateId, showToast }) {
   const [reportView, setReportView] = useState('daily');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(localDateStr(new Date()));
   const [showAddExpense, setShowAddExpense] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [newExpense, setNewExpense] = useState({title:'',amount:'',category:'rent'});
 
   const normalized = bills.map(normalizeBill);
-  const today = new Date().toISOString().split('T')[0];
   const weekAgo = new Date(Date.now()-7*86400000);
   const nowDate = new Date();
 
-  const filterByDate = (bs, d) => bs.filter(b => b._date.toISOString().split('T')[0] === d);
+  const filterByDate = (bs, d) => bs.filter(b => localDateStr(b._date) === d);
   const filterByWeek = (bs) => bs.filter(b => b._date >= weekAgo);
   const filterByMonth = (bs) => bs.filter(b => b._date.getMonth()===nowDate.getMonth()&&b._date.getFullYear()===nowDate.getFullYear());
 
@@ -75,13 +60,21 @@ export default function ReportsTab({ bills, setBills, expenses, saveExpenses, cu
   const dayWise = getDayWise(reportView==='weekly'?filterByWeek(normalized):filterByMonth(normalized));
   const maxDay = Math.max(...dayWise.map(d=>d.total),1);
 
+  const doRefresh = async () => {
+    setRefreshing(true);
+    const s = await getSalesFromSheet(userRef.current||currentUser);
+    if (s && s.length > 0) setBills(s);
+    setRefreshing(false);
+    showToast('Reports refreshed','success');
+  };
+
   return (
     <div>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
         <p style={{...sT,margin:0}}>Reports</p>
         <div style={{display:'flex',gap:8}}>
           <button onClick={()=>setShowAddExpense(true)} style={ghostBtn}>+ Expense</button>
-          <button onClick={()=>getSalesFromSheet(userRef.current||currentUser).then(s=>{if(s&&s.length>0)setBills(s);})} style={ghostBtn}>Refresh</button>
+          <button onClick={doRefresh} disabled={refreshing} style={{...ghostBtn,opacity:refreshing?0.6:1}}>{refreshing?'Refreshing...':'Refresh'}</button>
         </div>
       </div>
 
@@ -98,7 +91,7 @@ export default function ReportsTab({ bills, setBills, expenses, saveExpenses, cu
           <div style={{display:'flex',gap:8}}>
             <button onClick={()=>{
               if(!newExpense.title||!newExpense.amount){showToast('Fill all fields','error');return;}
-              const e={id:generateId('exp'),title:newExpense.title,amount:Number(newExpense.amount),category:newExpense.category,date:new Date().toISOString().split('T')[0]};
+              const e={id:generateId('exp'),title:newExpense.title,amount:Number(newExpense.amount),category:newExpense.category,date:localDateStr(new Date())};
               saveExpenses([...expenses,e]);
               setNewExpense({title:'',amount:'',category:'rent'});
               setShowAddExpense(false);

@@ -15,7 +15,7 @@ function getBillGst(b) { return Number(b.gst || 0); }
 function getBillDiscount(b) { return Number(b.discount || 0); }
 function getBillMode(b) { return String(b.mode || b.payment_mode || ''); }
 function getBillDate(b) {
-  const d = b.date || b.timestamp || '';
+  const d = b.timestamp || b.date || '';
   try {
     const dt = new Date(d);
     if (!isNaN(dt)) return dt.toLocaleDateString('en-IN');
