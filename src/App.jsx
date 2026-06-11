@@ -5,6 +5,8 @@ import { INDUSTRIES, TRANSLATIONS } from './config';
 import { generateId, calculateTotal } from './utils';
 import { initializeAppData } from './loadGoogleSheet';
 import { getAllVendorData, saveBillToSheet, getSalesFromSheet, saveProductsToSheet, getProductsFromSheet, saveKhataToSheet, getKhataFromSheet, saveExpensesToSheet, getExpensesFromSheet, saveSettingsToSheet, getSettingsFromSheet } from './salesSheets';
+import { queueBill, flushQueue, pendingCount } from './utils/syncQueue';
+import { sanitizeProducts, sanitizeKhata, sanitizeExpenses, sanitizeSettings } from './utils/billUtils';
 import { GOLD, GOLD_L, BG, BOR, SURF, TX, DIM, MU, inp, goldBtn, ghostBtn, card, sT } from './utils/theme';
 import { parseItems } from './utils/billUtils';
 import BillingTab from './components/BillingTab';
@@ -41,19 +43,17 @@ export default function POSApp() {
 
   const loadUserData = (user, ind) => {
     setAppLoading(true);
-    // Load sales first so app is usable fast
-    getSalesFromSheet(user).then(s=>{ if(s) setBills(s); }).catch(()=>{});
-    // Load other data in background
-    getProductsFromSheet(user).then(p=>{ if(p&&p.length>0) setProducts(p); else { const sv=localStorage.getItem('pos-products-'+user.id); if(sv) setProducts(JSON.parse(sv)); else setProducts(ind.sampleProducts||[]); } }).catch(()=>{});
-    getSettingsFromSheet(user).then(st=>{ if(st) setShopSettings(st); else { const sv=localStorage.getItem('pos-settings-'+user.id); if(sv) setShopSettings(JSON.parse(sv)); } }).catch(()=>{});
-    getKhataFromSheet(user).then(k=>{ if(k&&k.length>0) setKhata(k); else { const sv=localStorage.getItem('pos-khata-'+user.id); if(sv) setKhata(JSON.parse(sv)); } }).catch(()=>{});
-    getExpensesFromSheet(user).then(e=>{ if(e&&e.length>0) setExpenses(e); else { const sv=localStorage.getItem('pos-expenses-'+user.id); if(sv) setExpenses(JSON.parse(sv)); } }).catch(()=>{});
-    // Show app after 3 seconds regardless
+    getSalesFromSheet(user).then(s=>{ if(Array.isArray(s)) setBills(s); }).catch(()=>{});
+    getProductsFromSheet(user).then(p=>{ const clean=sanitizeProducts(p); if(clean.length>0) setProducts(clean); else { const sv=localStorage.getItem('pos-products-'+user.id); if(sv) setProducts(sanitizeProducts(JSON.parse(sv))); else setProducts(ind.sampleProducts||[]); } }).catch(()=>{});
+    getSettingsFromSheet(user).then(st=>{ const clean=sanitizeSettings(st); if(clean) setShopSettings(clean); else { const sv=localStorage.getItem('pos-settings-'+user.id); if(sv){ const c2=sanitizeSettings(JSON.parse(sv)); if(c2) setShopSettings(c2); } } }).catch(()=>{});
+    getKhataFromSheet(user).then(k=>{ const clean=sanitizeKhata(k); if(clean.length>0) setKhata(clean); else { const sv=localStorage.getItem('pos-khata-'+user.id); if(sv) setKhata(sanitizeKhata(JSON.parse(sv))); } }).catch(()=>{});
+    getExpensesFromSheet(user).then(e=>{ const clean=sanitizeExpenses(e); if(clean.length>0) setExpenses(clean); else { const sv=localStorage.getItem('pos-expenses-'+user.id); if(sv) setExpenses(sanitizeExpenses(JSON.parse(sv))); } }).catch(()=>{});
+    flushQueue(user,(r)=>{ if(r.synced>0) showToast(r.synced+' offline bill(s) synced!','success'); });
     setTimeout(()=>setAppLoading(false), 3000);
   };
 
   useEffect(()=>{
-    const onOnline=()=>setIsOnline(true);
+    const onOnline=()=>{ setIsOnline(true); const u=userRef.current; if(u) flushQueue(u,(r)=>{ if(r.synced>0) showToast(r.synced+' offline bill(s) synced!','success'); }); };
     const onOffline=()=>setIsOnline(false);
     window.addEventListener('online',onOnline);
     window.addEventListener('offline',onOffline);
@@ -149,15 +149,17 @@ export default function POSApp() {
 
   const completeBill=async(mode)=>{
     if(cart.length===0){showToast('Cart is empty','error');return;}
-    setLoadingBill(true);
+    const u=userRef.current||currentUser;
     const bill={id:generateId('bill'),items:cart,subtotal:Math.round(subtotal),discount:discountAmt,gst:Math.round(gst),total:Math.round(grandTotal),gstPercent:gstPct,mode,date:new Date().toLocaleDateString('en-IN'),timestamp:new Date().toISOString()};
-    await saveBillToSheet(bill,currentUser);
+    // OPTIMISTIC: UI updates instantly, sync happens in background
+    setBills(prev=>[...prev,bill]);
     const updatedProducts=products.map(p=>{ const ci=cart.find(c=>c.id===p.id); if(ci&&p.stock!==undefined) return {...p,stock:Math.max(0,p.stock-ci.qty)}; return p; });
     saveProducts(updatedProducts);
-    setBills(prev=>[...prev,bill]);
-    setCart([]); setDiscount(0); setLoadingBill(false);
-    showToast('Bill saved! Rs.'+bill.total,'success');
-    getSalesFromSheet(userRef.current||currentUser).then(s=>{ if(s&&s.length>0) setBills(s); });
+    setCart([]); setDiscount(0);
+    queueBill(bill,u);
+    if(navigator.onLine){ showToast('Bill saved! Rs.'+bill.total,'success'); }
+    else { showToast('No internet — bill saved offline, will auto-sync','error'); }
+    flushQueue(u,(r)=>{ if(r.pending>0&&navigator.onLine) showToast(r.pending+' bill(s) will retry sync','error'); });
     window.open('https://wa.me/?text='+encodeURIComponent(generateBillText(bill)),'_blank');
   };
 

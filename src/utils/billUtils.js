@@ -49,3 +49,53 @@ export function normalizeBill(b) {
     _items: parseItems(b),
   };
 }
+
+// ── Validation layer: every byte from Sheets gets sanitized ──
+export function sanitizeProducts(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.filter(p => p && typeof p === 'object' && p.name).map(p => ({
+    ...p,
+    id: String(p.id || ('prod_' + Math.random().toString(36).slice(2,9))),
+    name: String(p.name),
+    price: Number(p.price) || 0,
+    stock: (p.stock === undefined || p.stock === null || p.stock === '') ? undefined : (Number(p.stock) || 0),
+    category: p.category ? String(p.category) : '',
+  }));
+}
+
+export function sanitizeKhata(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.filter(k => k && typeof k === 'object' && k.customer).map(k => ({
+    ...k,
+    id: String(k.id || ('kh_' + Math.random().toString(36).slice(2,9))),
+    customer: String(k.customer),
+    phone: k.phone ? String(k.phone) : '',
+    amount: Number(k.amount) || 0,
+    note: k.note ? String(k.note) : '',
+    type: k.type === 'received' ? 'received' : 'given',
+    paid: k.paid === true,
+    date: k.date ? String(k.date) : '',
+  }));
+}
+
+export function sanitizeExpenses(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.filter(e => e && typeof e === 'object' && e.title).map(e => ({
+    ...e,
+    id: String(e.id || ('exp_' + Math.random().toString(36).slice(2,9))),
+    title: String(e.title),
+    amount: Number(e.amount) || 0,
+    category: e.category ? String(e.category) : 'other',
+    date: e.date ? String(e.date) : '',
+  }));
+}
+
+export function sanitizeSettings(s) {
+  if (!s || typeof s !== 'object') return null;
+  return {
+    gstin: s.gstin ? String(s.gstin) : '',
+    gstPercent: Number(s.gstPercent) >= 0 ? Number(s.gstPercent) : 5,
+    shopAddress: s.shopAddress ? String(s.shopAddress) : '',
+    shopPhone: s.shopPhone ? String(s.shopPhone) : '',
+  };
+}
